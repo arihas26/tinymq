@@ -1,5 +1,5 @@
 import 'broker.dart';
-import 'log.dart';
+import 'message_record.dart';
 
 class Consumer {
   Consumer({
@@ -17,12 +17,7 @@ class Consumer {
   int get nextOffset => _nextOffset;
 
   List<MessageRecord> poll({int maxRecords = 100}) {
-    final records = broker.fetch(
-      topic,
-      partition,
-      _nextOffset,
-      maxRecords: maxRecords,
-    );
+    final records = broker.fetch(topic, partition, _nextOffset, maxRecords: maxRecords);
     if (records.isNotEmpty) {
       _nextOffset = records.last.offset + 1;
     }

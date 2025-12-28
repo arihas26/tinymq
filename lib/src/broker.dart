@@ -1,5 +1,5 @@
+import 'message_record.dart';
 import 'errors.dart';
-import 'log.dart';
 import 'topic.dart';
 
 class Broker {

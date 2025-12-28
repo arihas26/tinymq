@@ -1,20 +1,7 @@
 import 'dart:collection';
 
 import 'errors.dart';
-
-class MessageRecord {
-  MessageRecord({
-    required this.offset,
-    required this.timestamp,
-    required this.value,
-    this.key,
-  });
-
-  final int offset;
-  final DateTime timestamp;
-  final String value;
-  final String? key;
-}
+import 'message_record.dart';
 
 class PartitionLog {
   PartitionLog(this.partitionId);
@@ -26,11 +13,7 @@ class PartitionLog {
   int get size => _records.length;
   int get nextOffset => _nextOffset;
 
-  MessageRecord append({
-    required String value,
-    String? key,
-    DateTime? timestamp,
-  }) {
+  MessageRecord append({required String value, String? key, DateTime? timestamp}) {
     final record = MessageRecord(
       offset: _nextOffset,
       timestamp: timestamp ?? DateTime.now().toUtc(),

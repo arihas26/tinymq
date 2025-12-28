@@ -1,12 +1,9 @@
 import 'errors.dart';
-import 'log.dart';
+import 'partition_log.dart';
 
 class Topic {
   Topic(this.name, int partitions)
-    : _partitions = List<PartitionLog>.generate(
-        partitions,
-        (index) => PartitionLog(index),
-      );
+    : _partitions = List<PartitionLog>.generate(partitions, (index) => PartitionLog(index));
 
   final String name;
   final List<PartitionLog> _partitions;
