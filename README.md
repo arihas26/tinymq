@@ -93,4 +93,13 @@ Run a separate consumer process:
 dart run bin/tinymq_consumer.dart
 ```
 
-The consumer polls `events` partition 0 and prints processed records, then commits offsets.
+The consumer joins a group and polls its assigned partitions.
+
+Multiple consumers (same group, different consumerId):
+
+```bash
+dart run bin/tinymq_consumer.dart events group-a consumer-1
+dart run bin/tinymq_consumer.dart events group-a consumer-2
+```
+
+Consumers with different groups will each receive all partitions.

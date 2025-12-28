@@ -82,6 +82,7 @@ void main() {
     broker.produce('metrics', 'y');
 
     final initial = broker.partitionMetrics('metrics', 0);
+    expect(initial.beginOffset, 0);
     expect(initial.size, 2);
     expect(initial.endOffset, 2);
     expect(initial.lag, 2);

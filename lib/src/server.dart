@@ -62,6 +62,8 @@ class JsonBrokerServer {
         return _metrics(request);
       case 'listTopics':
         return _listTopics();
+      case 'joinGroup':
+        return _joinGroup(request);
       default:
         return _error('Unknown type: $type');
     }
@@ -125,6 +127,7 @@ class JsonBrokerServer {
     final groupId = request['groupId'] as String?;
     final metrics = broker.partitionMetrics(topic, partition, groupId: groupId);
     return _ok(<String, dynamic>{
+      'beginOffset': metrics.beginOffset,
       'size': metrics.size,
       'endOffset': metrics.endOffset,
       'lag': metrics.lag,
@@ -133,6 +136,17 @@ class JsonBrokerServer {
 
   Map<String, dynamic> _listTopics() {
     return _ok(<String, dynamic>{'topics': broker.topics.toList()});
+  }
+
+  Map<String, dynamic> _joinGroup(Map<String, dynamic> request) {
+    final groupId = request['groupId'] as String?;
+    final topic = request['topic'] as String?;
+    final consumerId = request['consumerId'] as String?;
+    if (groupId == null || topic == null || consumerId == null) {
+      return _error('Missing groupId/topic/consumerId');
+    }
+    final partitions = broker.joinGroup(groupId, topic, consumerId);
+    return _ok(<String, dynamic>{'partitions': partitions});
   }
 
   Map<String, dynamic> _ok(Map<String, dynamic> data) {

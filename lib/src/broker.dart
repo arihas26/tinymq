@@ -1,6 +1,7 @@
 import 'package:path/path.dart' as path;
 
 import 'errors.dart';
+import 'group_coordinator.dart';
 import 'log_storage.dart';
 import 'message_record.dart';
 import 'metrics.dart';
@@ -12,6 +13,7 @@ class Broker {
 
   final Map<String, Topic> _topics = <String, Topic>{};
   final OffsetStore _offsetStore = OffsetStore();
+  final GroupCoordinator _groupCoordinator = GroupCoordinator();
   final String? logDirectory;
 
   Iterable<String> get topics => _topics.keys;
@@ -73,12 +75,32 @@ class Broker {
   }) {
     final topic = _topicOrThrow(topicName);
     final log = topic.partition(partition);
+    final beginOffset = log.baseOffset;
     final endOffset = log.nextOffset;
     final committed = groupId == null
         ? null
         : _offsetStore.getOffset(groupId, topicName, partition);
     final lag = endOffset - (committed ?? 0);
-    return PartitionMetrics(size: log.size, endOffset: endOffset, lag: lag);
+    return PartitionMetrics(
+      beginOffset: beginOffset,
+      size: log.size,
+      endOffset: endOffset,
+      lag: lag,
+    );
+  }
+
+  List<int> joinGroup(
+    String groupId,
+    String topicName,
+    String consumerId,
+  ) {
+    final topic = _topicOrThrow(topicName);
+    return _groupCoordinator.join(
+      groupId: groupId,
+      topic: topicName,
+      consumerId: consumerId,
+      partitionCount: topic.partitionCount,
+    );
   }
 
   int? committedOffset(String groupId, String topicName, int partition) {
