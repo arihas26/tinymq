@@ -1,0 +1,55 @@
+import 'dart:collection';
+
+import 'errors.dart';
+
+class MessageRecord {
+  MessageRecord({
+    required this.offset,
+    required this.timestamp,
+    required this.value,
+    this.key,
+  });
+
+  final int offset;
+  final DateTime timestamp;
+  final String value;
+  final String? key;
+}
+
+class PartitionLog {
+  PartitionLog(this.partitionId);
+
+  final int partitionId;
+  final List<MessageRecord> _records = <MessageRecord>[];
+  int _nextOffset = 0;
+
+  int get size => _records.length;
+  int get nextOffset => _nextOffset;
+
+  MessageRecord append({
+    required String value,
+    String? key,
+    DateTime? timestamp,
+  }) {
+    final record = MessageRecord(
+      offset: _nextOffset,
+      timestamp: timestamp ?? DateTime.now().toUtc(),
+      value: value,
+      key: key,
+    );
+    _records.add(record);
+    _nextOffset += 1;
+    return record;
+  }
+
+  List<MessageRecord> readFrom(int offset, {int maxRecords = 100}) {
+    if (offset < 0) {
+      throw InvalidOffset(offset);
+    }
+    if (offset >= _records.length) {
+      return const <MessageRecord>[];
+    }
+    final end = (offset + maxRecords).clamp(0, _records.length);
+    return UnmodifiableListView(_records.sublist(offset, end));
+  }
+}
