@@ -1,6 +1,6 @@
 # TinyMQ
 
-Tiny message queue inspired by Kafka.
+Tiny message queue inspired by Kafka, built for learning.
 
 ## Simple system diagram
 
