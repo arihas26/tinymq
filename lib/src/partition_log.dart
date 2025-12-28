@@ -1,13 +1,21 @@
 import 'dart:collection';
 
 import 'errors.dart';
+import 'log_storage.dart';
 import 'message_record.dart';
 
 class PartitionLog {
-  PartitionLog(this.partitionId);
+  PartitionLog(this.partitionId, {LogStorage? storage}) : _storage = storage {
+    final loaded = _storage?.load() ?? <MessageRecord>[];
+    if (loaded.isNotEmpty) {
+      _records.addAll(loaded);
+      _nextOffset = _records.last.offset + 1;
+    }
+  }
 
   final int partitionId;
   final List<MessageRecord> _records = <MessageRecord>[];
+  final LogStorage? _storage;
   int _nextOffset = 0;
 
   int get size => _records.length;
@@ -22,6 +30,7 @@ class PartitionLog {
     );
     _records.add(record);
     _nextOffset += 1;
+    _storage?.append(record);
     return record;
   }
 
