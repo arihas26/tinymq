@@ -1,4 +1,7 @@
 class GroupCoordinator {
+  GroupCoordinator({this.sessionTimeout = const Duration(seconds: 10)});
+
+  final Duration sessionTimeout;
   final Map<String, GroupState> _groups = <String, GroupState>{};
 
   List<int> join({
@@ -13,8 +16,23 @@ class GroupCoordinator {
     );
     state.topic = topic;
     state.partitionCount = partitionCount;
-    state.members.add(consumerId);
+    state.touch(consumerId);
+    state.expireOlderThan(DateTime.now().toUtc().subtract(sessionTimeout));
     return state.assignmentFor(consumerId);
+  }
+
+  void leave({
+    required String groupId,
+    required String consumerId,
+  }) {
+    final state = _groups[groupId];
+    if (state == null) {
+      return;
+    }
+    state.remove(consumerId);
+    if (state.members.isEmpty) {
+      _groups.remove(groupId);
+    }
   }
 }
 
@@ -23,13 +41,25 @@ class GroupState {
 
   String topic;
   int partitionCount = 0;
-  final Set<String> members = <String>{};
+  final Map<String, DateTime> members = <String, DateTime>{};
+
+  void touch(String consumerId) {
+    members[consumerId] = DateTime.now().toUtc();
+  }
+
+  void remove(String consumerId) {
+    members.remove(consumerId);
+  }
+
+  void expireOlderThan(DateTime threshold) {
+    members.removeWhere((_, lastSeen) => lastSeen.isBefore(threshold));
+  }
 
   List<int> assignmentFor(String consumerId) {
     if (partitionCount == 0) {
       return const <int>[];
     }
-    final sortedMembers = members.toList()..sort();
+    final sortedMembers = members.keys.toList()..sort();
     if (!sortedMembers.contains(consumerId)) {
       return const <int>[];
     }

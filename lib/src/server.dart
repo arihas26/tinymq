@@ -64,6 +64,8 @@ class JsonBrokerServer {
         return _listTopics();
       case 'joinGroup':
         return _joinGroup(request);
+      case 'leaveGroup':
+        return _leaveGroup(request);
       default:
         return _error('Unknown type: $type');
     }
@@ -147,6 +149,16 @@ class JsonBrokerServer {
     }
     final partitions = broker.joinGroup(groupId, topic, consumerId);
     return _ok(<String, dynamic>{'partitions': partitions});
+  }
+
+  Map<String, dynamic> _leaveGroup(Map<String, dynamic> request) {
+    final groupId = request['groupId'] as String?;
+    final consumerId = request['consumerId'] as String?;
+    if (groupId == null || consumerId == null) {
+      return _error('Missing groupId/consumerId');
+    }
+    broker.leaveGroup(groupId, consumerId);
+    return _ok(<String, dynamic>{'groupId': groupId});
   }
 
   Map<String, dynamic> _ok(Map<String, dynamic> data) {

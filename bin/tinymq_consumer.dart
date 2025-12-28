@@ -9,52 +9,76 @@ Future<void> main(List<String> arguments) async {
   final groupId = arguments.length > 1 ? arguments[1] : 'group-a';
   final consumerId = arguments.length > 2 ? arguments[2] : 'consumer-1';
   final offsets = <int, int>{};
+  var assignments = <int>[];
 
   print('consumer connected to 127.0.0.1:4040');
   print('topic=$topic group=$groupId consumerId=$consumerId');
 
-  final joinResponse = await client.request(<String, dynamic>{
-    'type': 'joinGroup',
-    'groupId': groupId,
-    'topic': topic,
-    'consumerId': consumerId,
-  });
-  if (joinResponse['ok'] != true) {
-    print('joinGroup error: ${joinResponse['error']}');
-    await client.close();
-    return;
-  }
-  final joinData = joinResponse['data'] as Map<String, dynamic>;
-  final partitions = (joinData['partitions'] as List<dynamic>).cast<int>();
-  if (partitions.isEmpty) {
-    print('no partitions assigned');
-    await client.close();
-    return;
-  }
-  print('assigned partitions: $partitions');
-  for (final partition in partitions) {
-    final response = await client.request(<String, dynamic>{
-      'type': 'metrics',
-      'topic': topic,
-      'partition': partition,
+  Future<bool> refreshAssignments() async {
+    final joinResponse = await client.request(<String, dynamic>{
+      'type': 'joinGroup',
       'groupId': groupId,
+      'topic': topic,
+      'consumerId': consumerId,
     });
-    if (response['ok'] != true) {
-      print('metrics error: ${response['error']}');
-      continue;
+    if (joinResponse['ok'] != true) {
+      print('joinGroup error: ${joinResponse['error']}');
+      return false;
     }
-    final data = response['data'] as Map<String, dynamic>;
-    offsets[partition] = data['beginOffset'] as int;
+    final joinData = joinResponse['data'] as Map<String, dynamic>;
+    final partitions = (joinData['partitions'] as List<dynamic>).cast<int>();
+    if (partitions.isEmpty) {
+      print('no partitions assigned');
+      return false;
+    }
+    if (!_sameAssignments(assignments, partitions)) {
+      assignments = partitions;
+      print('assigned partitions: $assignments');
+      for (final partition in assignments) {
+        final response = await client.request(<String, dynamic>{
+          'type': 'metrics',
+          'topic': topic,
+          'partition': partition,
+          'groupId': groupId,
+        });
+        if (response['ok'] != true) {
+          print('metrics error: ${response['error']}');
+          continue;
+        }
+        final data = response['data'] as Map<String, dynamic>;
+        offsets.putIfAbsent(
+          partition,
+          () => data['beginOffset'] as int,
+        );
+      }
+    }
+    return true;
+  }
+
+  if (!await refreshAssignments()) {
+    await client.close();
+    return;
   }
 
   ProcessSignal.sigint.watch().listen((_) async {
+    await client.request(<String, dynamic>{
+      'type': 'leaveGroup',
+      'groupId': groupId,
+      'consumerId': consumerId,
+    });
     await client.close();
     exit(0);
   });
 
+  var lastJoin = DateTime.now().toUtc();
   while (true) {
+    if (DateTime.now().toUtc().difference(lastJoin) >
+        const Duration(seconds: 3)) {
+      await refreshAssignments();
+      lastJoin = DateTime.now().toUtc();
+    }
     var processedAny = false;
-    for (final partition in partitions) {
+    for (final partition in assignments) {
       final nextOffset = offsets[partition] ?? 0;
       final response = await client.request(<String, dynamic>{
         'type': 'fetch',
@@ -101,4 +125,16 @@ Future<void> main(List<String> arguments) async {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
   }
+}
+
+bool _sameAssignments(List<int> a, List<int> b) {
+  if (a.length != b.length) {
+    return false;
+  }
+  for (var i = 0; i < a.length; i += 1) {
+    if (a[i] != b[i]) {
+      return false;
+    }
+  }
+  return true;
 }

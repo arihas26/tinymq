@@ -103,3 +103,7 @@ dart run bin/tinymq_consumer.dart events group-a consumer-2
 ```
 
 Consumers with different groups will each receive all partitions.
+
+Rebalance behavior:
+- Consumers periodically re-join the group (heartbeat).
+- If a consumer stops, its partitions will be reassigned after a short timeout.

@@ -103,6 +103,10 @@ class Broker {
     );
   }
 
+  void leaveGroup(String groupId, String consumerId) {
+    _groupCoordinator.leave(groupId: groupId, consumerId: consumerId);
+  }
+
   int? committedOffset(String groupId, String topicName, int partition) {
     _topicOrThrow(topicName).partition(partition);
     return _offsetStore.getOffset(groupId, topicName, partition);
