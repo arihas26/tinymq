@@ -1,6 +1,8 @@
 # TinyMQ
 
-Tiny message queue inspired by Kafka, built for learning.
+Tiny message queue inspired by Kafka, built for learning. It supports topics,
+partitions, consumer groups, and a JSON-over-TCP protocol so you can explore
+messaging basics without heavy dependencies.
 
 ## Simple system diagram
 
@@ -14,7 +16,16 @@ flowchart LR
   P1 <-->|fetch/poll| Consumer1((Consumer))
 ```
 
-## JSON over TCP (learning mode)
+## Features
+
+- Topic creation with configurable partitions
+- Produce by explicit partition or key-based hashing with round-robin fallback
+- Fetch by offset with simple batch limits
+- Consumer group coordination with heartbeats and round-robin assignment
+- Commit offsets and compute lag metrics
+- Optional file-backed log storage (JSON lines) for replay
+
+## Quick start: JSON over TCP (learning mode)
 
 Run the server:
 
@@ -66,6 +77,18 @@ Heartbeat (keep membership alive):
 {"type":"heartbeat","groupId":"g1","consumerId":"consumer-1"}
 ```
 
+Join group (get partition assignment):
+
+```json
+{"type":"joinGroup","groupId":"g1","topic":"events","consumerId":"consumer-1"}
+```
+
+Leave group:
+
+```json
+{"type":"leaveGroup","groupId":"g1","consumerId":"consumer-1"}
+```
+
 List topics:
 
 ```json
@@ -113,3 +136,36 @@ Consumers with different groups will each receive all partitions.
 Rebalance behavior:
 - Consumers periodically re-join the group (heartbeat).
 - If a consumer stops, its partitions will be reassigned after a short timeout.
+
+## Protocol overview
+
+All requests are single-line JSON objects. Responses are JSON with `ok` and
+either `data` or `error`.
+
+Request types:
+- `createTopic`: `topic`, `partitions` (default 1)
+- `produce`: `topic`, `value`, optional `key`, optional `partition`
+- `fetch`: `topic`, `partition`, `offset`, optional `max` (default 100)
+- `commit`: `groupId`, `topic`, `partition`, `offset`
+- `metrics`: `topic`, `partition`, optional `groupId`
+- `listTopics`: no fields
+- `joinGroup`: `groupId`, `topic`, `consumerId`
+- `leaveGroup`: `groupId`, `consumerId`
+- `heartbeat`: `groupId`, `consumerId`
+
+## Storage and offsets
+
+- Logs are kept in memory and optionally persisted to
+  `data/tinymq-demo/<topic>/partition-<id>.log` as JSON lines.
+- Committed offsets are stored in memory only (restart resets group progress).
+- Offsets are zero-based and increase by one per record.
+
+## Tests
+
+```bash
+dart test
+```
+
+## License
+
+MIT. See `LICENSE`.
