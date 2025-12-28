@@ -65,3 +65,32 @@ List topics:
 ```json
 {"type":"listTopics"}
 ```
+
+Sample session (copy/paste line by line into `nc`):
+
+```json
+{"type":"createTopic","topic":"events","partitions":2}
+{"type":"produce","topic":"events","value":"boot"}
+{"type":"produce","topic":"events","value":"user:42","key":"user-42"}
+{"type":"produce","topic":"events","value":"click","partition":0}
+{"type":"fetch","topic":"events","partition":0,"offset":0,"max":10}
+{"type":"commit","groupId":"g1","topic":"events","partition":0,"offset":3}
+{"type":"metrics","topic":"events","partition":0,"groupId":"g1"}
+{"type":"listTopics"}
+```
+
+## Consumer process (learning mode)
+
+Run the broker server:
+
+```bash
+dart run bin/tinymq_server.dart
+```
+
+Run a separate consumer process:
+
+```bash
+dart run bin/tinymq_consumer.dart
+```
+
+The consumer polls `events` partition 0 and prints processed records, then commits offsets.
