@@ -21,6 +21,19 @@ class GroupCoordinator {
     return state.assignmentFor(consumerId);
   }
 
+  bool heartbeat({
+    required String groupId,
+    required String consumerId,
+  }) {
+    final state = _groups[groupId];
+    if (state == null) {
+      return false;
+    }
+    state.touch(consumerId);
+    state.expireOlderThan(DateTime.now().toUtc().subtract(sessionTimeout));
+    return true;
+  }
+
   void leave({
     required String groupId,
     required String consumerId,

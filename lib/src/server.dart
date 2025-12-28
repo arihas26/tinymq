@@ -66,6 +66,8 @@ class JsonBrokerServer {
         return _joinGroup(request);
       case 'leaveGroup':
         return _leaveGroup(request);
+      case 'heartbeat':
+        return _heartbeat(request);
       default:
         return _error('Unknown type: $type');
     }
@@ -130,6 +132,7 @@ class JsonBrokerServer {
     final metrics = broker.partitionMetrics(topic, partition, groupId: groupId);
     return _ok(<String, dynamic>{
       'beginOffset': metrics.beginOffset,
+      'committedOffset': metrics.committedOffset,
       'size': metrics.size,
       'endOffset': metrics.endOffset,
       'lag': metrics.lag,
@@ -158,6 +161,19 @@ class JsonBrokerServer {
       return _error('Missing groupId/consumerId');
     }
     broker.leaveGroup(groupId, consumerId);
+    return _ok(<String, dynamic>{'groupId': groupId});
+  }
+
+  Map<String, dynamic> _heartbeat(Map<String, dynamic> request) {
+    final groupId = request['groupId'] as String?;
+    final consumerId = request['consumerId'] as String?;
+    if (groupId == null || consumerId == null) {
+      return _error('Missing groupId/consumerId');
+    }
+    final ok = broker.heartbeatGroup(groupId, consumerId);
+    if (!ok) {
+      return _error('Group not found');
+    }
     return _ok(<String, dynamic>{'groupId': groupId});
   }
 

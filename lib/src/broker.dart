@@ -83,6 +83,7 @@ class Broker {
     final lag = endOffset - (committed ?? 0);
     return PartitionMetrics(
       beginOffset: beginOffset,
+      committedOffset: committed,
       size: log.size,
       endOffset: endOffset,
       lag: lag,
@@ -105,6 +106,13 @@ class Broker {
 
   void leaveGroup(String groupId, String consumerId) {
     _groupCoordinator.leave(groupId: groupId, consumerId: consumerId);
+  }
+
+  bool heartbeatGroup(String groupId, String consumerId) {
+    return _groupCoordinator.heartbeat(
+      groupId: groupId,
+      consumerId: consumerId,
+    );
   }
 
   int? committedOffset(String groupId, String topicName, int partition) {

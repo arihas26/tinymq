@@ -27,14 +27,16 @@ Future<void> main(List<String> arguments) async {
     }
     final joinData = joinResponse['data'] as Map<String, dynamic>;
     final partitions = (joinData['partitions'] as List<dynamic>).cast<int>();
-    if (partitions.isEmpty) {
-      print('no partitions assigned');
-      return false;
-    }
     if (!_sameAssignments(assignments, partitions)) {
+      final previous = assignments;
       assignments = partitions;
       print('assigned partitions: $assignments');
-      for (final partition in assignments) {
+      final previousSet = previous.toSet();
+      final currentSet = assignments.toSet();
+      for (final removed in previousSet.difference(currentSet)) {
+        offsets.remove(removed);
+      }
+      for (final partition in currentSet.difference(previousSet)) {
         final response = await client.request(<String, dynamic>{
           'type': 'metrics',
           'topic': topic,
@@ -46,10 +48,9 @@ Future<void> main(List<String> arguments) async {
           continue;
         }
         final data = response['data'] as Map<String, dynamic>;
-        offsets.putIfAbsent(
-          partition,
-          () => data['beginOffset'] as int,
-        );
+        final committed = data['committedOffset'] as int?;
+        final begin = data['beginOffset'] as int;
+        offsets[partition] = committed ?? begin;
       }
     }
     return true;
@@ -71,11 +72,24 @@ Future<void> main(List<String> arguments) async {
   });
 
   var lastJoin = DateTime.now().toUtc();
+  var lastHeartbeat = DateTime.now().toUtc();
   while (true) {
-    if (DateTime.now().toUtc().difference(lastJoin) >
-        const Duration(seconds: 3)) {
+    final now = DateTime.now().toUtc();
+    if (now.difference(lastHeartbeat) > const Duration(seconds: 2)) {
+      final heartbeat = await client.request(<String, dynamic>{
+        'type': 'heartbeat',
+        'groupId': groupId,
+        'consumerId': consumerId,
+      });
+      if (heartbeat['ok'] != true) {
+        await refreshAssignments();
+        lastJoin = now;
+      }
+      lastHeartbeat = now;
+    }
+    if (now.difference(lastJoin) > const Duration(seconds: 6)) {
       await refreshAssignments();
-      lastJoin = DateTime.now().toUtc();
+      lastJoin = now;
     }
     var processedAny = false;
     for (final partition in assignments) {

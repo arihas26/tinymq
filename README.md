@@ -60,6 +60,12 @@ Metrics:
 {"type":"metrics","topic":"events","partition":0,"groupId":"g1"}
 ```
 
+Heartbeat (keep membership alive):
+
+```json
+{"type":"heartbeat","groupId":"g1","consumerId":"consumer-1"}
+```
+
 List topics:
 
 ```json
